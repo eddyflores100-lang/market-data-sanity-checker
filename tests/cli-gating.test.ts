@@ -324,4 +324,27 @@ describe('rules — catalog listing', () => {
     expect(compareSection).toMatch(/SPLIT_MISMATCH[\s\S]*?ref: https?:\/\//)
     expect((stdout.match(/^ {4}ref: /gm) ?? []).length).toBeGreaterThanOrEqual(36)
   })
+
+  // Regression for #108: the rules command used to do strict-equality on
+  // options.format === 'json', so `--format JSON` silently printed a table
+  // and `--format yaml` fell through to the table branch instead of erroring.
+  // The check/compare commands already did both correctly via validateCommonFlags;
+  // rules now mirrors them.
+  it('accepts --format JSON (case-insensitive) and prints parseable JSON on stdout', async () => {
+    const result = await runCli(['rules', '--format', 'JSON'])
+    expect(result.code).toBe(0)
+    const report = JSON.parse(result.stdout) as {
+      single_source?: unknown[]
+      compare?: unknown[]
+    }
+    expect(Array.isArray(report.single_source)).toBe(true)
+    expect(Array.isArray(report.compare)).toBe(true)
+    expect((report.single_source ?? []).length).toBeGreaterThan(0)
+  })
+
+  it('exits 2 on unknown --format with the same message as check/compare', async () => {
+    const result = await runCli(['rules', '--format', 'yaml'])
+    expect(result.code).toBe(2)
+    expect(result.stderr).toContain('--format must be one of: table, json')
+  })
 })

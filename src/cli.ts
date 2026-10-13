@@ -415,7 +415,17 @@ program
   .description('List the rule catalog with severities, dimensions and references')
   .option('--format <format>', 'output format: table | json', 'table')
   .action((options: { format: string }) => {
-    if (options.format === 'json') {
+    // Match check/compare: lower-case the format, reject unknown values
+    // with the same message and exit code 2 that validateCommonFlags uses.
+    // Without this, `mdsc rules --format JSON` silently prints a table
+    // (the strict-equality branch below never matches), and `--format yaml`
+    // falls through to the table branch instead of erroring. See #108.
+    const format = options.format.toLowerCase()
+    if (format !== 'table' && format !== 'json') {
+      console.error('mdsc: --format must be one of: table, json')
+      process.exit(2)
+    }
+    if (format === 'json') {
       console.log(
         JSON.stringify(
           {
